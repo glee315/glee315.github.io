@@ -3,509 +3,534 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>QR Code Maker</title>
+<title>Tide — a breathing space</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&display=swap" rel="stylesheet">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@1,6..72,300;1,6..72,400&family=Figtree:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
   :root {
-    --paper: #E9EEF5; --ink: #1C2541; --muted: #5E6B88; --accent: #2B59C3;
-    --on-accent: #FFFFFF; --field: #FFFFFF; --line: #C9D3E3; --error: #B3261E; --warn: #8A5A00;
+    --glass: rgba(12, 24, 32, 0.42);
+    --glass-line: rgba(255, 255, 255, 0.16);
+    --glass-on: rgba(255, 255, 255, 0.16);
+    --ink: #F3F8F8;
+    --ink-soft: rgba(243, 248, 248, 0.68);
+    --accent: #8FD0D6;
+    --accent-ink: #0D2E33;
+    --fallback-bg: #1C3A44;
     box-sizing: border-box;
     padding-top: env(safe-area-inset-top, 0px);
     padding-bottom: env(safe-area-inset-bottom, 0px);
   }
   @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) {
-      --paper: #141A2B; --ink: #E6ECF7; --muted: #98A4C0; --accent: #7EA2FF;
-      --on-accent: #10172A; --field: #1E2640; --line: #33405F; --error: #FF8A80; --warn: #F5C26B;
+      --glass: rgba(6, 12, 18, 0.55);
+      --glass-line: rgba(255, 255, 255, 0.12);
+      --fallback-bg: #0E1C24;
     }
   }
   :root[data-theme="dark"] {
-    --paper: #141A2B; --ink: #E6ECF7; --muted: #98A4C0; --accent: #7EA2FF;
-    --on-accent: #10172A; --field: #1E2640; --line: #33405F; --error: #FF8A80; --warn: #F5C26B;
+    --glass: rgba(6, 12, 18, 0.55);
+    --glass-line: rgba(255, 255, 255, 0.12);
+    --fallback-bg: #0E1C24;
   }
-  html { scroll-padding-top: env(safe-area-inset-top, 0px); }
   *, *::before, *::after { box-sizing: inherit; }
+  html { height: 100%; scroll-padding-top: env(safe-area-inset-top, 0px); }
   body {
-    margin: 0; min-height: 100vh; background: var(--paper); color: var(--ink);
-    font-family: "Bricolage Grotesque", system-ui, -apple-system, "Segoe UI", sans-serif;
-    padding: 3rem 1.25rem 4rem;
+    margin: 0; height: 100%; overflow: hidden;
+    background: var(--fallback-bg); color: var(--ink);
+    font-family: "Figtree", system-ui, -apple-system, "Segoe UI", sans-serif;
+    -webkit-font-smoothing: antialiased;
   }
-  main { max-width: 64rem; margin: 0 auto; }
-  h1 {
-    font-size: clamp(2.5rem, 7vw, 3.75rem); font-weight: 800; line-height: 0.95;
-    letter-spacing: -0.035em; margin: 0 0 0.75rem; max-width: 14ch;
-  }
-  .lede { color: var(--muted); font-size: 1.125rem; line-height: 1.5; margin: 0 0 2rem; max-width: 46ch; }
-  .layout { display: grid; gap: 2.5rem; grid-template-columns: 1fr; }
-  @media (min-width: 52rem) {
-    .layout { grid-template-columns: minmax(0, 1fr) 22rem; align-items: start; }
-    .preview { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 1.5rem); }
-  }
-  label, .label { display: block; font-weight: 600; margin-bottom: 0.5rem; }
-  .row { display: flex; gap: 0.5rem; }
-  input[type=text], input[type=url], select {
-    flex: 1; min-width: 0; font: inherit; font-size: 1.0625rem; padding: 0.8rem 1rem;
-    color: var(--ink); background: var(--field); border: 2px solid var(--line); border-radius: 10px;
-  }
-  select { flex: none; }
-  input:focus-visible, select:focus-visible { outline: none; border-color: var(--accent); }
-  button {
-    font: inherit; font-weight: 600; font-size: 1.0625rem; padding: 0.8rem 1.25rem;
-    border: 0; border-radius: 10px; background: var(--accent); color: var(--on-accent); cursor: pointer;
-  }
-  button.quiet { background: transparent; color: var(--ink); border: 2px solid var(--line); padding: 0.6rem 1rem; font-size: 1rem; }
-  button:focus-visible, .chip input:focus-visible + span, .swatch:focus-visible, .upload:focus-within {
-    outline: 3px solid var(--accent); outline-offset: 2px;
-  }
-  .msg { min-height: 1.5rem; margin: 0.5rem 0 0; font-size: 0.95rem; color: var(--muted); }
-  .msg.error { color: var(--error); }
 
-  fieldset { border: 0; padding: 0; margin: 2rem 0 0; min-width: 0; }
-  legend { font-size: 1.375rem; font-weight: 800; letter-spacing: -0.015em; padding: 0; margin-bottom: 1rem; }
-  .group + .group { margin-top: 1.25rem; }
-  .note { font-size: 0.9rem; color: var(--muted); margin: 0.4rem 0 0; line-height: 1.45; }
-  .note.warn { color: var(--warn); }
+  #scene, #photo, .shade, #tide, #crest { position: fixed; inset: 0; width: 100%; height: 100%; }
+  #scene { display: block; }
+  #photo { object-fit: cover; opacity: 0; transition: opacity 1.2s ease; transform-origin: 50% 60%; max-width: 100%; }
+  #photo.on { opacity: 1; }
+  .shade { background: radial-gradient(ellipse at 50% 45%, rgba(0,0,0,0) 30%, rgba(0,0,0,0.35) 100%); pointer-events: none; }
+  #tide {
+    pointer-events: none;
+    background: linear-gradient(180deg, rgba(200,235,240,0.16) 0%, rgba(120,180,195,0.10) 60%, rgba(60,110,125,0.16) 100%);
+    backdrop-filter: blur(2px) saturate(1.1); -webkit-backdrop-filter: blur(2px) saturate(1.1);
+    clip-path: polygon(0 100%, 100% 100%, 100% 100%, 0 100%);
+  }
+  #crest { pointer-events: none; }
+  #crest path { fill: none; stroke: rgba(255,255,255,0.55); stroke-width: 1.5; }
 
-  .swatches { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1rem; }
-  .swatch {
-    width: 2.75rem; height: 2.75rem; border-radius: 50%; border: 2px solid var(--line);
-    padding: 0; cursor: pointer; position: relative; overflow: hidden;
+  .guide {
+    position: fixed; inset: 0;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    text-align: center; padding: 0 24px 200px; pointer-events: none;
+    text-shadow: 0 2px 24px rgba(0,0,0,0.35);
   }
-  .swatch[aria-pressed="true"] { border-color: var(--ink); box-shadow: 0 0 0 2px var(--paper), 0 0 0 4px var(--ink); }
-  .swatch i { position: absolute; inset: 22%; border-radius: 3px; }
-  .colors { display: flex; flex-wrap: wrap; gap: 1rem 1.5rem; }
-  .color { display: flex; align-items: center; gap: 0.6rem; font-weight: 400; margin: 0; }
-  input[type=color] {
-    width: 2.75rem; height: 2.75rem; padding: 0; border: 2px solid var(--line);
-    border-radius: 10px; background: none; cursor: pointer;
+  .cue {
+    font-family: "Newsreader", Georgia, "Times New Roman", serif;
+    font-style: italic; font-weight: 300;
+    font-size: clamp(3rem, 11vw, 7.5rem);
+    line-height: 1; letter-spacing: -0.02em; margin: 0;
   }
-  input[type=color]::-webkit-color-swatch-wrapper { padding: 3px; }
-  input[type=color]::-webkit-color-swatch { border: 0; border-radius: 6px; }
+  .count { margin-top: 1.1rem; font-size: 1.125rem; font-weight: 500; font-variant-numeric: tabular-nums; opacity: 0.8; min-height: 1.5em; }
+  .hint { margin: 0.5rem 0 0; font-size: 0.98rem; opacity: 0.85; max-width: 34ch; line-height: 1.5; }
 
-  .chips { display: flex; flex-wrap: wrap; gap: 0.5rem; }
-  .chip { position: relative; margin: 0; font-weight: 400; }
-  .chip input { position: absolute; opacity: 0; pointer-events: none; }
-  .chip span {
-    display: flex; align-items: center; gap: 0.5rem; padding: 0.55rem 0.9rem;
-    border: 2px solid var(--line); border-radius: 999px; cursor: pointer; background: var(--field);
+  .controls {
+    position: fixed; left: 50%; bottom: calc(18px + env(safe-area-inset-bottom, 0px));
+    transform: translateX(-50%);
+    width: min(600px, calc(100% - 24px));
+    background: var(--glass);
+    backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+    border: 1px solid var(--glass-line);
+    border-radius: 22px; padding: 14px;
+    display: grid; gap: 10px;
+    transition: opacity .6s ease;
   }
-  .chip span svg { width: 1.1rem; height: 1.1rem; fill: currentColor; }
-  .chip input:checked + span { border-color: var(--accent); color: var(--accent); font-weight: 600; }
-  .chip input:disabled + span { opacity: 0.5; cursor: not-allowed; }
+  .controls.dim { opacity: 0.2; }
+  .controls.dim:hover, .controls.dim:focus-within { opacity: 1; }
+  .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .label { font-size: 0.8rem; color: var(--ink-soft); width: 4rem; flex: none; }
+  .seg { display: flex; gap: 4px; flex-wrap: wrap; flex: 1; }
+  .seg button, .ghost {
+    font: inherit; font-size: 0.875rem; font-weight: 500; color: inherit;
+    background: transparent; border: 1px solid transparent; border-radius: 999px;
+    padding: 7px 12px; cursor: pointer;
+  }
+  .seg button[aria-pressed="true"], .ghost[aria-pressed="true"] { background: var(--glass-on); border-color: var(--glass-line); }
+  .seg button:hover, .ghost:hover { border-color: var(--glass-line); }
+  .primary {
+    font: inherit; font-weight: 600; font-size: 1rem; border: 0; border-radius: 999px; cursor: pointer;
+    padding: 12px 22px; flex: 1 1 140px; background: var(--accent); color: var(--accent-ink);
+  }
+  .primary:hover { filter: brightness(1.08); }
+  .vol { display: flex; align-items: center; gap: 6px; font-size: 0.8rem; color: var(--ink-soft); }
+  input[type="range"] { width: 90px; accent-color: var(--accent); }
+  .remaining { font-variant-numeric: tabular-nums; font-size: 0.9rem; color: var(--ink-soft); min-width: 3.2rem; text-align: right; }
+  button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
-  .range { display: flex; align-items: center; gap: 1rem; }
-  input[type=range] { flex: 1; accent-color: var(--accent); }
-  .range output { min-width: 3.5rem; text-align: right; font-variant-numeric: tabular-nums; color: var(--muted); }
-
-  .upload {
-    display: flex; align-items: center; gap: 1rem; padding: 0.9rem 1rem; margin: 0;
-    border: 2px dashed var(--line); border-radius: 12px; cursor: pointer; font-weight: 400;
+  @media (max-width: 520px) {
+    .label { width: 100%; margin-bottom: -4px; }
+    .guide { padding-bottom: 360px; }
+    .cue { font-size: clamp(2.6rem, 13vw, 4rem); }
   }
-  .upload input { position: absolute; opacity: 0; width: 1px; height: 1px; }
-  .thumb {
-    width: 3rem; height: 3rem; border-radius: 8px; background: var(--paper);
-    display: grid; place-items: center; overflow: hidden; flex: none; color: var(--muted); font-size: 1.5rem;
-  }
-  .thumb img { max-width: 100%; max-height: 100%; }
-  .check { display: flex; align-items: center; gap: 0.6rem; font-weight: 400; margin: 0.75rem 0 0; }
-  .check input { width: 1.2rem; height: 1.2rem; accent-color: var(--accent); }
-  .logo-opts[hidden] { display: none; }
-
-  .stage {
-    aspect-ratio: 1; width: 100%; border: 2px dashed var(--line); border-radius: 18px;
-    display: grid; place-items: center; color: var(--muted); text-align: center; padding: 1.5rem;
-  }
-  .stage.filled { border: 0; padding: 0; aspect-ratio: auto; }
-  .stage svg { width: 100%; height: auto; display: block; border-radius: 6px; box-shadow: 0 1px 0 var(--line), 0 12px 32px -18px rgba(28,37,65,.45); }
-  .stage.pop svg { animation: pop 240ms ease-out; }
-  @keyframes pop { from { transform: scale(0.95); opacity: 0; } to { transform: none; opacity: 1; } }
-  @media (prefers-reduced-motion: reduce) { .stage.pop svg { animation: none; } }
-  .encoded { margin: 1rem 0 0; font-size: 0.95rem; color: var(--muted); word-break: break-all; }
-  .encoded strong { color: var(--ink); }
-  .save { margin-top: 1.25rem; display: grid; gap: 0.75rem; }
-  .save .row { flex-wrap: wrap; }
-  .save[hidden], .encoded[hidden], #hint[hidden] { display: none; }
 </style>
 </head>
 <body>
-<main>
-  <h1>Turn a link into a QR code</h1>
-  <p class="lede">Paste a web address, then make it yours with colors, shapes and a logo. Any phone camera can scan the result.</p>
+  <canvas id="scene" aria-hidden="true"></canvas>
+  <img id="photo" alt="" aria-hidden="true">
+  <div class="shade" aria-hidden="true"></div>
+  <div id="tide" aria-hidden="true"></div>
+  <svg id="crest" aria-hidden="true" preserveAspectRatio="none"><path id="crestPath" d=""/></svg>
 
-  <div class="layout">
-    <section aria-label="Settings">
-      <label for="url">Web address</label>
-      <div class="row">
-        <input id="url" type="url" inputmode="url" autocomplete="url" placeholder="example.com/menu" autofocus>
-        <button id="go" type="button">Make code</button>
-      </div>
-      <p id="msg" class="msg" role="status"></p>
-
-      <fieldset>
-        <legend>Colors</legend>
-        <div class="swatches" id="swatches" role="group" aria-label="Color presets"></div>
-        <div class="colors">
-          <label class="color"><input type="color" id="fg" value="#1C2541"> Code color</label>
-          <label class="color"><input type="color" id="bg" value="#FFFFFF"> Background</label>
-        </div>
-        <p id="contrast" class="note" aria-live="polite"></p>
-      </fieldset>
-
-      <fieldset>
-        <legend>Shape</legend>
-        <div class="group">
-          <span class="label" id="dotsLabel">Dots</span>
-          <div class="chips" role="radiogroup" aria-labelledby="dotsLabel">
-            <label class="chip"><input type="radio" name="dots" value="square" checked><span><svg viewBox="0 0 10 10"><rect x="1" y="1" width="8" height="8"/></svg>Square</span></label>
-            <label class="chip"><input type="radio" name="dots" value="rounded"><span><svg viewBox="0 0 10 10"><rect x="1" y="1" width="8" height="8" rx="2.6"/></svg>Rounded</span></label>
-            <label class="chip"><input type="radio" name="dots" value="dots"><span><svg viewBox="0 0 10 10"><circle cx="5" cy="5" r="4"/></svg>Dots</span></label>
-          </div>
-        </div>
-        <div class="group">
-          <span class="label" id="eyesLabel">Corner squares</span>
-          <div class="chips" role="radiogroup" aria-labelledby="eyesLabel">
-            <label class="chip"><input type="radio" name="eyes" value="square" checked><span><svg viewBox="0 0 10 10"><path fill-rule="evenodd" d="M0 0h10v10H0zM2 2v6h6V2zM3.5 3.5h3v3h-3z"/></svg>Square</span></label>
-            <label class="chip"><input type="radio" name="eyes" value="rounded"><span><svg viewBox="0 0 10 10"><path fill-rule="evenodd" d="M3 0h4a3 3 0 0 1 3 3v4a3 3 0 0 1-3 3H3a3 3 0 0 1-3-3V3a3 3 0 0 1 3-3zM3.5 2A1.5 1.5 0 0 0 2 3.5v3A1.5 1.5 0 0 0 3.5 8h3A1.5 1.5 0 0 0 8 6.5v-3A1.5 1.5 0 0 0 6.5 2zM4.3 3.5h1.4a.8.8 0 0 1 .8.8v1.4a.8.8 0 0 1-.8.8H4.3a.8.8 0 0 1-.8-.8V4.3a.8.8 0 0 1 .8-.8z"/></svg>Rounded</span></label>
-            <label class="chip"><input type="radio" name="eyes" value="circle"><span><svg viewBox="0 0 10 10"><path fill-rule="evenodd" d="M5 0a5 5 0 1 1 0 10A5 5 0 0 1 5 0zm0 2a3 3 0 1 0 0 6 3 3 0 0 0 0-6zm0 1.4a1.6 1.6 0 1 1 0 3.2 1.6 1.6 0 0 1 0-3.2z"/></svg>Circle</span></label>
-          </div>
-        </div>
-      </fieldset>
-
-      <fieldset>
-        <legend>Logo</legend>
-        <label class="upload">
-          <span class="thumb" id="thumb" aria-hidden="true">+</span>
-          <span><strong id="logoName">Add a logo</strong><br><span class="note" style="margin:0">PNG, JPG or SVG. Shown in the center.</span></span>
-          <input type="file" id="logo" accept="image/png,image/jpeg,image/svg+xml,image/webp,image/gif">
-        </label>
-        <div class="logo-opts" id="logoOpts" hidden>
-          <div class="group" style="margin-top:1rem">
-            <label for="logoSize">Logo size</label>
-            <div class="range"><input type="range" id="logoSize" min="12" max="28" value="22"><output id="logoSizeOut" for="logoSize">22%</output></div>
-          </div>
-          <label class="check"><input type="checkbox" id="logoPad" checked> Clear space behind the logo</label>
-          <div style="margin-top:0.75rem"><button type="button" class="quiet" id="logoRemove">Remove logo</button></div>
-          <p class="note">With a logo, the code switches to its highest error correction so it still scans with the center covered.</p>
-        </div>
-      </fieldset>
-
-      <fieldset>
-        <legend>Extras</legend>
-        <div class="group">
-          <label for="caption">Text under the code</label>
-          <input type="text" id="caption" maxlength="40" placeholder="Scan to see our menu" style="width:100%">
-        </div>
-        <div class="group">
-          <label for="margin">Border space</label>
-          <div class="range"><input type="range" id="margin" min="0" max="8" value="4"><output id="marginOut" for="margin">4</output></div>
-          <p class="note">Most scanners need a border of about 4 dots around the code.</p>
-        </div>
-        <div class="group">
-          <label for="ec">Damage resistance</label>
-          <select id="ec">
-            <option value="L">Low (7%), simplest pattern</option>
-            <option value="M" selected>Medium (15%), recommended</option>
-            <option value="Q">High (25%)</option>
-            <option value="H">Highest (30%)</option>
-          </select>
-          <p class="note" id="ecNote">Higher levels still scan when part of the code is scratched or covered, but make the pattern denser.</p>
-        </div>
-      </fieldset>
-    </section>
-
-    <aside class="preview" aria-label="Preview">
-      <div id="stage" class="stage">Your QR code will appear here.</div>
-      <p id="encoded" class="encoded" hidden></p>
-      <div class="save" id="save" hidden>
-        <div class="row">
-          <select id="pngSize" aria-label="Image size">
-            <option value="512">512 px</option>
-            <option value="1024" selected>1024 px</option>
-            <option value="2048">2048 px</option>
-          </select>
-          <button type="button" id="dlPng" style="flex:1">Download PNG</button>
-        </div>
-        <button type="button" class="quiet" id="dlSvg">Download SVG for print</button>
-        <p class="msg" id="saveMsg" role="status"></p>
-      </div>
-      <p id="hint" class="note" hidden>To save it, take a screenshot or long-press the code.</p>
-    </aside>
+  <div class="guide" aria-hidden="true">
+    <p class="cue" id="cue">Breathe</p>
+    <div class="count" id="count"></div>
+    <p class="hint" id="hint">Pick a rhythm, a place and a sound, then press start. Breathe in as the tide rises and out as it falls.</p>
   </div>
-</main>
+  <div class="sr" aria-live="polite" id="live"></div>
+
+  <div class="controls" id="controls">
+    <div class="row"><span class="label">Rhythm</span><div class="seg" id="patterns" role="group" aria-label="Breathing rhythm"></div></div>
+    <div class="row"><span class="label">Length</span><div class="seg" id="lengths" role="group" aria-label="Session length"></div></div>
+    <div class="row"><span class="label">Place</span><div class="seg" id="scenes" role="group" aria-label="Background"></div></div>
+    <div class="row"><span class="label">Sound</span><div class="seg" id="sounds" role="group" aria-label="Background sound"></div></div>
+    <div class="row">
+      <button class="primary" id="toggle">Start</button>
+      <button class="ghost" id="reset" hidden>Stop</button>
+      <button class="ghost" id="chimes" aria-pressed="true">Chimes</button>
+      <label class="vol">Volume <input type="range" id="volume" min="0" max="1" step="0.01" value="0.7"></label>
+      <span class="remaining" id="remaining"></span>
+    </div>
+    <input type="file" id="file" accept="image/*" hidden>
+  </div>
 
 <script>
-const $ = id => document.getElementById(id);
-const els = {
-  url: $('url'), go: $('go'), msg: $('msg'), fg: $('fg'), bg: $('bg'), contrast: $('contrast'),
-  logo: $('logo'), logoOpts: $('logoOpts'), logoSize: $('logoSize'), logoSizeOut: $('logoSizeOut'),
-  logoPad: $('logoPad'), logoRemove: $('logoRemove'), thumb: $('thumb'), logoName: $('logoName'),
-  caption: $('caption'), margin: $('margin'), marginOut: $('marginOut'), ec: $('ec'), ecNote: $('ecNote'),
-  stage: $('stage'), encoded: $('encoded'), save: $('save'), pngSize: $('pngSize'),
-  dlPng: $('dlPng'), dlSvg: $('dlSvg'), saveMsg: $('saveMsg'), hint: $('hint'), swatches: $('swatches')
-};
-const FONT = '"Bricolage Grotesque", system-ui, -apple-system, "Segoe UI", sans-serif';
-let currentUrl = null, logo = null, downloads = null;
-
-/* ---------- Presets ---------- */
-const presets = [
-  ['Navy', '#1C2541', '#FFFFFF'], ['Black', '#000000', '#FFFFFF'], ['Forest', '#1F5135', '#F1F6EE'],
-  ['Plum', '#4B1D52', '#FBF3FA'], ['Crimson', '#9E1B32', '#FFF6F4'], ['Cobalt', '#1546A8', '#EEF3FF'],
-  ['Espresso', '#3B2418', '#F7EFE6'], ['Teal', '#0B5563', '#E8F6F5']
-];
-presets.forEach(([name, fg, bg], i) => {
-  const b = document.createElement('button');
-  b.type = 'button'; b.className = 'swatch'; b.style.background = bg;
-  b.setAttribute('aria-label', name); b.setAttribute('aria-pressed', i === 0);
-  b.title = name;
-  const dot = document.createElement('i'); dot.style.background = fg; b.append(dot);
-  b.addEventListener('click', () => { els.fg.value = fg; els.bg.value = bg; syncSwatches(); render(); });
-  els.swatches.append(b);
-});
-function syncSwatches() {
-  [...els.swatches.children].forEach((b, i) => {
-    const [, fg, bg] = presets[i];
-    b.setAttribute('aria-pressed', fg.toLowerCase() === els.fg.value.toLowerCase() && bg.toLowerCase() === els.bg.value.toLowerCase());
-  });
-}
-
-/* ---------- Helpers ---------- */
-function normalize(raw) {
-  let v = raw.trim();
-  if (!v) return { error: 'Enter a web address first.' };
-  if (!/^[a-z][a-z0-9+.-]*:/i.test(v)) v = 'https://' + v;
-  try {
-    const u = new URL(v);
-    if ((u.protocol === 'http:' || u.protocol === 'https:') && !u.hostname.includes('.') && u.hostname !== 'localhost')
-      return { error: 'That address needs a domain, like example.com.' };
-    return { url: u.href, host: u.hostname };
-  } catch { return { error: 'That isn\u2019t a valid web address. Check for typos or spaces.' }; }
-}
-function lum(hex) {
-  const c = [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16) / 255)
-    .map(v => v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4);
-  return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
-}
-function checkContrast() {
-  const a = lum(els.fg.value), b = lum(els.bg.value);
-  const ratio = (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
-  let t = '', warn = false;
-  if (ratio < 3) { t = 'These colors are too close together. Many phones won\u2019t be able to scan this code.'; warn = true; }
-  else if (a > b) { t = 'Light codes on dark backgrounds don\u2019t scan on some older phones. Test it before printing.'; warn = true; }
-  else if (ratio < 4.5) { t = 'Contrast is a little low. Test the code with a phone before printing.'; warn = true; }
-  els.contrast.textContent = t;
-  els.contrast.className = 'note' + (warn ? ' warn' : '');
-}
-const radio = name => document.querySelector(`input[name=${name}]:checked`).value;
-const esc = s => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-
-/* ---------- Build a scene of shapes (shared by SVG and PNG) ---------- */
-function buildScene(text) {
-  const ecLevel = logo ? 'H' : els.ec.value;
-  const qr = qrcode(0, ecLevel);
-  qr.addData(text, 'Byte'); qr.make();
-  const n = qr.getModuleCount();
-  const m = +els.margin.value;
-  const W = n + m * 2;
-  const fg = els.fg.value, bg = els.bg.value;
-  const dots = radio('dots'), eyes = radio('eyes');
-  const caption = els.caption.value.trim();
-  const capH = caption ? Math.max(W * 0.14, 5) : 0;
-  const H = W + capH;
-  const shapes = [{ t: 'rect', x: 0, y: 0, w: W, h: H, r: 0, fill: bg }];
-
-  // Logo box (in module units), centered
-  let box = null;
-  if (logo) {
-    const s = n * (+els.logoSize.value / 100);
-    box = { x: m + (n - s) / 2, y: m + (n - s) / 2, s };
-  }
-  const isFinder = (r, c) => (r < 7 && c < 7) || (r < 7 && c >= n - 7) || (r >= n - 7 && c < 7);
-  const underLogo = (r, c) => {
-    if (!box || !els.logoPad.checked) return false;
-    const pad = 0.6, cx = c + m + 0.5, cy = r + m + 0.5;
-    return cx > box.x - pad && cx < box.x + box.s + pad && cy > box.y - pad && cy < box.y + box.s + pad;
+(() => {
+  /* ---------- settings ---------- */
+  const PATTERNS = {
+    calm:  { name: "Calm 5·5",    desc: "In 5, out 5",                 phases: [["in",5],["out",5]] },
+    box:   { name: "Box 4·4·4·4", desc: "In 4, hold 4, out 4, hold 4", phases: [["in",4],["holdTop",4],["out",4],["holdBottom",4]] },
+    sleep: { name: "Sleep 4·7·8", desc: "In 4, hold 7, out 8",         phases: [["in",4],["holdTop",7],["out",8]] },
   };
+  const LENGTHS = [1, 3, 5, 10];
+  const CUES = { in: "Breathe in", out: "Breathe out", holdTop: "Hold", holdBottom: "Hold" };
+  const SCENES = {
+    dawn:  { name: "Dawn sea",  sun:[0.35,0.045,1], zen:[0.15,0.22,0.48], hor:[1.0,0.56,0.36], sunCol:[1.8,1.0,0.5], water:[0.012,0.035,0.06], cloud:[1.0,0.55,0.42], stars:0, sunSize:0.0007, exposure:1.15 },
+    day:   { name: "Open water", sun:[-0.5,0.55,1], zen:[0.08,0.28,0.70], hor:[0.62,0.78,0.92], sunCol:[1.5,1.4,1.2], water:[0.0,0.06,0.10], cloud:[1.0,1.0,1.02], stars:0, sunSize:0.0006, exposure:0.95 },
+    night: { name: "Moonlit",   sun:[0.22,0.14,1], zen:[0.003,0.007,0.022], hor:[0.03,0.055,0.10], sunCol:[0.32,0.38,0.52], water:[0.002,0.005,0.01], cloud:[0.05,0.065,0.1], stars:1, sunSize:0.0005, exposure:1.25 },
+  };
+  const SOUNDS = { ocean: "Waves", rain: "Rain", drone: "Soft tone", off: "Off" };
+  const LOW = 0.1, HIGH = 0.8;
 
-  for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) {
-    if (!qr.isDark(r, c) || isFinder(r, c) || underLogo(r, c)) continue;
-    const x = c + m, y = r + m;
-    if (dots === 'dots') shapes.push({ t: 'circle', cx: x + 0.5, cy: y + 0.5, r: 0.44, fill: fg });
-    else if (dots === 'rounded') shapes.push({ t: 'rect', x: x + 0.06, y: y + 0.06, w: 0.88, h: 0.88, r: 0.3, fill: fg });
-    else shapes.push({ t: 'rect', x, y, w: 1.02, h: 1.02, r: 0, fill: fg });
+  const store = {
+    get(k, d) { try { const v = localStorage.getItem(k); return v ?? d; } catch { return d; } },
+    set(k, v) { try { localStorage.setItem(k, v); } catch {} },
+  };
+  let pattern = PATTERNS[store.get("tide-pattern")] ? store.get("tide-pattern") : "calm";
+  let minutes = Number(store.get("tide-length", 3)) || 3;
+  let sceneKey = SCENES[store.get("tide-scene")] ? store.get("tide-scene") : "dawn";
+  let soundKey = SOUNDS[store.get("tide-sound")] ? store.get("tide-sound") : "ocean";
+  let chimesOn = store.get("tide-chimes", "1") === "1";
+  let volume = Number(store.get("tide-volume", 0.7));
+  const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  const $ = id => document.getElementById(id);
+  const cueEl = $("cue"), countEl = $("count"), hintEl = $("hint"), live = $("live");
+  const toggle = $("toggle"), resetBtn = $("reset"), remainingEl = $("remaining"), controls = $("controls");
+  const tide = $("tide"), crest = $("crestPath"), photo = $("photo"), canvas = $("scene");
+  const DEFAULT_HINT = hintEl.textContent;
+
+  /* ---------- seascape (WebGL) ---------- */
+  const gl = canvas.getContext("webgl", { antialias: false, alpha: false, powerPreference: "low-power" });
+  let U = {}, cur = JSON.parse(JSON.stringify(SCENES[sceneKey])), target = SCENES[sceneKey];
+  const FRAG = `
+  precision highp float;
+  uniform vec2 uRes; uniform float uTime, uBreath, uStars, uSunSize, uExposure;
+  uniform vec3 uSun, uZen, uHor, uSunCol, uWater, uCloud;
+  float hash(vec2 p){ p = fract(p*vec2(123.34,456.21)); p += dot(p, p+45.32); return fract(p.x*p.y); }
+  float noise(vec2 p){ vec2 i=floor(p), f=fract(p); f=f*f*(3.-2.*f);
+    return mix(mix(hash(i),hash(i+vec2(1,0)),f.x), mix(hash(i+vec2(0,1)),hash(i+vec2(1,1)),f.x), f.y); }
+  float fbm(vec2 p){ float v=0., a=.5; for(int i=0;i<5;i++){ v+=a*noise(p); p=p*2.03+vec2(1.7,9.2); a*=.5; } return v; }
+  vec3 sky(vec3 rd){
+    vec3 sun = normalize(uSun);
+    float y = max(rd.y, 0.);
+    vec3 c = mix(uHor, uZen, pow(y, .45));
+    float s = max(dot(rd, sun), 0.);
+    c += uSunCol * (pow(s, 6.)*.22 + pow(s, 60.)*.45);
+    c += uSunCol * 8. * smoothstep(1.-uSunSize, 1.-uSunSize*.4, s);
+    if (uStars > 0.) {
+      vec2 sc = vec2(atan(rd.x, rd.z), asin(clamp(rd.y,-1.,1.))) * 220.;
+      vec2 id = floor(sc); float h = hash(id);
+      float st = step(.993, h) * smoothstep(.28, 0., length(fract(sc)-.5));
+      st *= .6 + .4*sin(uTime*2. + h*80.);
+      c += vec3(.9,.95,1.) * st * uStars * smoothstep(.02,.25,rd.y) * 1.4;
+    }
+    if (rd.y > 0.) {
+      vec2 cp = rd.xz / (rd.y + .09) * .9 + vec2(uTime*.012, uTime*.004);
+      float cl = smoothstep(.48, .9, fbm(cp));
+      vec3 cc = uCloud * (.55 + .7*pow(s, 3.)) + uSunCol*.15*pow(s,12.);
+      c = mix(c, cc, cl * .6 * smoothstep(0., .12, rd.y));
+    }
+    return c;
+  }
+  void main(){
+    vec2 uv = (gl_FragCoord.xy - .5*uRes) / uRes.y;
+    vec3 ro = vec3(0., 1.8 + uBreath*.9, 0.);
+    vec3 rd = normalize(vec3(uv.x, uv.y + .02, 1.25));
+    vec3 col;
+    if (rd.y >= 0.) { col = sky(rd); }
+    else {
+      float t = -ro.y / rd.y;
+      vec3 p = ro + rd*t;
+      vec2 g = vec2(0.);
+      float amp = .75 + uBreath*.55;
+      for (int i = 0; i < 9; i++) {
+        float fi = float(i);
+        float a = fi*1.71 + .4;
+        vec2 dir = vec2(cos(a), sin(a)*.6 + .4);
+        dir = normalize(dir);
+        float f = .14 * pow(1.6, fi);
+        float A = .32 / pow(1.85, fi) * amp * exp(-t*f*.018);
+        float ph = dot(dir, p.xz)*f + uTime*sqrt(9.8*f);
+        g += A * f * cos(ph) * dir;
+      }
+      vec2 dp = p.xz*1.6 + uTime*vec2(.25,.4);
+      float d = exp(-t*.06);
+      g += (vec2(fbm(dp+vec2(.05,0.)), fbm(dp+vec2(0.,.05))) - fbm(dp)) * 2.4 * d;
+      vec3 n = normalize(vec3(-g.x, 1., -g.y));
+      vec3 refl = reflect(rd, n); refl.y = abs(refl.y);
+      float fr = .02 + .98*pow(1. - max(dot(n, -rd), 0.), 5.);
+      vec3 sun = normalize(uSun);
+      vec3 body = uWater * (1. + 2.5*max(dot(n, sun), 0.)) + uSunCol*.012;
+      col = mix(body, sky(refl), fr);
+      col += uSunCol * (pow(max(dot(refl, sun), 0.), 500.)*6. + pow(max(dot(refl, sun), 0.), 60.)*.25);
+      vec3 fog = sky(normalize(vec3(rd.x, .002, rd.z)));
+      col = mix(col, fog, 1. - exp(-t*.0035));
+    }
+    col = 1. - exp(-col * uExposure);
+    col = pow(col, vec3(.4545));
+    float vg = smoothstep(1.3, .3, length(uv*vec2(.8,1.)));
+    col *= .82 + .18*vg;
+    gl_FragColor = vec4(col, 1.);
+  }`;
+  function initGL() {
+    if (!gl) return false;
+    const sh = (type, src) => { const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s);
+      if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) { console.error(gl.getShaderInfoLog(s)); return null; } return s; };
+    const vs = sh(gl.VERTEX_SHADER, "attribute vec2 p; void main(){ gl_Position = vec4(p,0.,1.); }");
+    const fs = sh(gl.FRAGMENT_SHADER, FRAG);
+    if (!vs || !fs) return false;
+    const prog = gl.createProgram(); gl.attachShader(prog, vs); gl.attachShader(prog, fs); gl.linkProgram(prog);
+    if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) return false;
+    gl.useProgram(prog);
+    const buf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 3,-1, -1,3]), gl.STATIC_DRAW);
+    const loc = gl.getAttribLocation(prog, "p"); gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+    ["uRes","uTime","uBreath","uStars","uSunSize","uExposure","uSun","uZen","uHor","uSunCol","uWater","uCloud"].forEach(n => U[n] = gl.getUniformLocation(prog, n));
+    return true;
+  }
+  const glOK = initGL();
+  function sizeCanvas() {
+    const scale = Math.min(window.devicePixelRatio || 1, 1.5) * (innerWidth < 700 ? 0.6 : 0.75);
+    canvas.width = Math.round(innerWidth * scale); canvas.height = Math.round(innerHeight * scale);
+    if (glOK) gl.viewport(0, 0, canvas.width, canvas.height);
+  }
+  sizeCanvas();
+  const lerpScene = k => {
+    for (const key of ["sun","zen","hor","sunCol","water","cloud"]) cur[key] = cur[key].map((v,i) => v + (target[key][i]-v)*k);
+    for (const key of ["stars","sunSize","exposure"]) cur[key] += (target[key]-cur[key])*k;
+  };
+  function renderScene(time, breath) {
+    if (!glOK || sceneKey === "photo") return;
+    const dt = Math.min(0.1, time - (renderScene.last || time)); renderScene.last = time; lerpScene(1 - Math.exp(-dt*2.2));
+    gl.uniform2f(U.uRes, canvas.width, canvas.height);
+    gl.uniform1f(U.uTime, time * (reduceMotion ? 0.35 : 1));
+    gl.uniform1f(U.uBreath, reduceMotion ? breath*0.3 : breath);
+    gl.uniform1f(U.uStars, cur.stars); gl.uniform1f(U.uSunSize, cur.sunSize); gl.uniform1f(U.uExposure, cur.exposure);
+    gl.uniform3fv(U.uSun, cur.sun); gl.uniform3fv(U.uZen, cur.zen); gl.uniform3fv(U.uHor, cur.hor);
+    gl.uniform3fv(U.uSunCol, cur.sunCol); gl.uniform3fv(U.uWater, cur.water); gl.uniform3fv(U.uCloud, cur.cloud);
+    gl.drawArrays(gl.TRIANGLES, 0, 3);
   }
 
-  // Finder patterns
-  [[0, 0], [0, n - 7], [n - 7, 0]].forEach(([r, c]) => {
-    const x = c + m, y = r + m;
-    if (eyes === 'circle') {
-      shapes.push({ t: 'circle', cx: x + 3.5, cy: y + 3.5, r: 3.5, fill: fg });
-      shapes.push({ t: 'circle', cx: x + 3.5, cy: y + 3.5, r: 2.5, fill: bg });
-      shapes.push({ t: 'circle', cx: x + 3.5, cy: y + 3.5, r: 1.55, fill: fg });
+  /* ---------- sound (Web Audio) ---------- */
+  let ctx = null, master = null, bed = null;
+  function ensureAudio() {
+    if (ctx) { if (ctx.state === "suspended") ctx.resume(); return; }
+    const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return;
+    ctx = new AC(); master = ctx.createGain(); master.gain.value = volume; master.connect(ctx.destination);
+    startBed();
+  }
+  function noiseBuffer(kind) {
+    const len = ctx.sampleRate * 6, buf = ctx.createBuffer(2, len, ctx.sampleRate);
+    for (let ch = 0; ch < 2; ch++) {
+      const d = buf.getChannelData(ch); let last = 0;
+      for (let i = 0; i < len; i++) {
+        const w = Math.random()*2 - 1;
+        if (kind === "brown") { last = (last + 0.02*w) / 1.02; d[i] = last * 3.5; } else d[i] = w;
+      }
+    }
+    return buf;
+  }
+  function stopBed() {
+    if (!bed) return;
+    const b = bed; bed = null;
+    b.out.gain.setTargetAtTime(0, ctx.currentTime, 0.4);
+    setTimeout(() => b.nodes.forEach(n => { try { n.stop(); } catch {} try { n.disconnect(); } catch {} }), 2000);
+  }
+  function startBed() {
+    if (!ctx) return;
+    stopBed();
+    if (soundKey === "off") return;
+    const out = ctx.createGain(); out.gain.value = 0; out.connect(master);
+    const nodes = [out]; let drive;
+    if (soundKey === "ocean") {
+      const src = ctx.createBufferSource(); src.buffer = noiseBuffer("brown"); src.loop = true;
+      const lp = ctx.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 500; lp.Q.value = 0.4;
+      const swell = ctx.createGain(); swell.gain.value = 0.4;
+      const hiss = ctx.createBufferSource(); hiss.buffer = noiseBuffer("white"); hiss.loop = true;
+      const hp = ctx.createBiquadFilter(); hp.type = "bandpass"; hp.frequency.value = 3500; hp.Q.value = 0.5;
+      const hissG = ctx.createGain(); hissG.gain.value = 0.0;
+      src.connect(lp).connect(swell).connect(out); hiss.connect(hp).connect(hissG).connect(out);
+      src.start(); hiss.start(); nodes.push(src, hiss, lp, swell, hp, hissG);
+      drive = lv => { const t = ctx.currentTime;
+        lp.frequency.setTargetAtTime(280 + 1100*lv, t, 0.25);
+        swell.gain.setTargetAtTime(0.25 + 0.75*lv, t, 0.25);
+        hissG.gain.setTargetAtTime(0.012 + 0.05*lv*lv, t, 0.3); };
+      out.gain.setTargetAtTime(0.9, ctx.currentTime, 1.2);
+    } else if (soundKey === "rain") {
+      const src = ctx.createBufferSource(); src.buffer = noiseBuffer("white"); src.loop = true;
+      const hp = ctx.createBiquadFilter(); hp.type = "highpass"; hp.frequency.value = 900;
+      const lp = ctx.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 7000;
+      const g = ctx.createGain(); g.gain.value = 0.14;
+      const rum = ctx.createBufferSource(); rum.buffer = noiseBuffer("brown"); rum.loop = true;
+      const rlp = ctx.createBiquadFilter(); rlp.type = "lowpass"; rlp.frequency.value = 220;
+      const rg = ctx.createGain(); rg.gain.value = 0.35;
+      src.connect(hp).connect(lp).connect(g).connect(out); rum.connect(rlp).connect(rg).connect(out);
+      src.start(); rum.start(); nodes.push(src, rum, hp, lp, g, rlp, rg);
+      // scattered droplets
+      const drip = () => { if (!bed || bed.out !== out) return;
+        const o = ctx.createOscillator(), dg = ctx.createGain(), t = ctx.currentTime;
+        o.type = "sine"; o.frequency.setValueAtTime(1800 + Math.random()*2200, t); o.frequency.exponentialRampToValueAtTime(500, t+0.05);
+        dg.gain.setValueAtTime(0.0001, t); dg.gain.exponentialRampToValueAtTime(0.03*Math.random()+0.005, t+0.004); dg.gain.exponentialRampToValueAtTime(0.0001, t+0.07);
+        o.connect(dg).connect(out); o.start(t); o.stop(t+0.08);
+        setTimeout(drip, 60 + Math.random()*260); };
+      setTimeout(drip, 300);
+      drive = lv => { lp.frequency.setTargetAtTime(4500 + 3500*lv, ctx.currentTime, 0.4); };
+      out.gain.setTargetAtTime(0.9, ctx.currentTime, 1.2);
+    } else if (soundKey === "drone") {
+      const lp = ctx.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 600; lp.Q.value = 0.7;
+      lp.connect(out); nodes.push(lp);
+      [110, 164.81, 220, 277.18, 329.63].forEach((f, i) => {
+        const o = ctx.createOscillator(), g = ctx.createGain(), lfo = ctx.createOscillator(), lg = ctx.createGain();
+        o.type = i < 2 ? "sine" : "triangle"; o.frequency.value = f; o.detune.value = (Math.random()-0.5)*8;
+        g.gain.value = [0.22, 0.16, 0.12, 0.06, 0.05][i];
+        lfo.frequency.value = 0.05 + Math.random()*0.08; lg.gain.value = g.gain.value*0.5;
+        lfo.connect(lg).connect(g.gain); o.connect(g).connect(lp); o.start(); lfo.start(); nodes.push(o, g, lfo, lg);
+      });
+      drive = lv => { lp.frequency.setTargetAtTime(350 + 1500*lv, ctx.currentTime, 0.3); };
+      out.gain.setTargetAtTime(0.6, ctx.currentTime, 1.5);
+    }
+    bed = { out, nodes, drive };
+  }
+  function bell(freq, gainAmt = 0.18, decay = 3.2) {
+    if (!ctx || !chimesOn) return;
+    const t = ctx.currentTime;
+    [[1, 1], [2.76, 0.35], [5.4, 0.12], [8.93, 0.05]].forEach(([m, a]) => {
+      const o = ctx.createOscillator(), g = ctx.createGain();
+      o.type = "sine"; o.frequency.value = freq * m;
+      g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(gainAmt*a, t + 0.012);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + decay / Math.sqrt(m));
+      o.connect(g).connect(master); o.start(t); o.stop(t + decay + 0.1);
+    });
+  }
+  const PHASE_TONES = { in: 659.25, out: 440, holdTop: 587.33, holdBottom: 493.88 };
+
+  /* ---------- controls ---------- */
+  function buildSeg(el, items, current, onPick) {
+    el.innerHTML = "";
+    items.forEach(([key, label, title]) => {
+      const b = document.createElement("button");
+      b.type = "button"; b.textContent = label; b.dataset.key = key; if (title) b.title = title;
+      b.setAttribute("aria-pressed", String(key == current));
+      b.onclick = () => { if (onPick(key) !== false) [...el.children].forEach(c => c.setAttribute("aria-pressed", String(c === b))); };
+      el.appendChild(b);
+    });
+  }
+  buildSeg($("patterns"), Object.entries(PATTERNS).map(([k,p]) => [k, p.name, p.desc]), pattern,
+    k => { pattern = k; store.set("tide-pattern", k); if (running || elapsedBefore) stop(); });
+  buildSeg($("lengths"), LENGTHS.map(m => [m, `${m} min`]), minutes,
+    m => { minutes = m; store.set("tide-length", m); updateRemaining(elapsed()); });
+  const sceneItems = Object.entries(SCENES).map(([k,s]) => [k, s.name]);
+  sceneItems.push(["photo", "Your photo", "Use a picture from your device"]);
+  buildSeg($("scenes"), sceneItems, sceneKey, k => {
+    if (k === "photo") { $("file").click(); return false; }
+    setScene(k); store.set("tide-scene", k);
+  });
+  buildSeg($("sounds"), Object.entries(SOUNDS), soundKey, k => {
+    soundKey = k; store.set("tide-sound", k); ensureAudio(); startBed();
+  });
+  const chimeBtn = $("chimes");
+  chimeBtn.setAttribute("aria-pressed", String(chimesOn));
+  chimeBtn.onclick = () => { chimesOn = !chimesOn; chimeBtn.setAttribute("aria-pressed", String(chimesOn)); store.set("tide-chimes", chimesOn ? "1" : "0"); if (chimesOn) { ensureAudio(); bell(659.25, 0.12, 2); } };
+  const volEl = $("volume"); volEl.value = volume;
+  volEl.oninput = () => { volume = Number(volEl.value); store.set("tide-volume", volume); if (master) master.gain.setTargetAtTime(volume, ctx.currentTime, 0.05); };
+
+  function setScene(k) {
+    sceneKey = k;
+    if (k === "photo") { photo.classList.add("on"); canvas.style.visibility = "hidden"; }
+    else { target = SCENES[k]; photo.classList.remove("on"); canvas.style.visibility = glOK ? "visible" : "hidden"; }
+    [...$("scenes").children].forEach(c => c.setAttribute("aria-pressed", String(c.dataset.key === k)));
+  }
+  $("file").onchange = e => {
+    const f = e.target.files && e.target.files[0]; if (!f) return;
+    if (photo.src) URL.revokeObjectURL(photo.src);
+    photo.src = URL.createObjectURL(f);
+    photo.onload = () => setScene("photo");
+    e.target.value = "";
+  };
+  if (sceneKey === "photo") sceneKey = "dawn";
+  if (!glOK) document.body.style.background = "linear-gradient(180deg,#3a5a7a 0%,#e8a07a 48%,#1d3a48 52%,#0b1f28 100%)";
+  setScene(sceneKey);
+
+  /* ---------- breathing engine ---------- */
+  let running = false, startedAt = 0, elapsedBefore = 0, lastKey = "", breaths = 0, level = LOW, finished = false;
+  const ease = t => 0.5 - 0.5*Math.cos(Math.PI*t);
+  const fmt = s => { s = Math.max(0, Math.ceil(s)); return `${Math.floor(s/60)}:${String(s%60).padStart(2,"0")}`; };
+  const cycleLen = () => PATTERNS[pattern].phases.reduce((a,p) => a+p[1], 0);
+  function elapsed() { return elapsedBefore + (running ? (performance.now()-startedAt)/1000 : 0); }
+  function updateRemaining(e) { remainingEl.textContent = fmt(minutes*60 - e); }
+  function phaseAt(e) {
+    const ph = PATTERNS[pattern].phases, cyc = cycleLen();
+    let t = e % cyc, idx = 0;
+    while (t >= ph[idx][1]) { t -= ph[idx][1]; idx++; }
+    return { kind: ph[idx][0], dur: ph[idx][1], t, idx, n: Math.floor(e/cyc) };
+  }
+
+  function drawTide(lv, time) {
+    const w = innerWidth, h = innerHeight, y = h*(1-lv), amp = reduceMotion ? 0 : 6, N = 28;
+    const pts = [], dpts = [];
+    for (let i = 0; i <= N; i++) {
+      const x = i/N;
+      const wy = y + Math.sin(x*Math.PI*2.2 + time*0.9)*amp + Math.sin(x*Math.PI*5.1 - time*1.3)*amp*0.4;
+      pts.push(`${(x*100).toFixed(2)}% ${wy.toFixed(1)}px`);
+      dpts.push(`${(x*w).toFixed(1)},${wy.toFixed(1)}`);
+    }
+    tide.style.clipPath = `polygon(0 100%, 100% 100%, ${pts.reverse().join(", ")})`;
+    crest.setAttribute("d", "M" + dpts.join(" L"));
+  }
+
+  let idleLevel = LOW;
+  function frame(now) {
+    const time = now/1000;
+    if (running) {
+      const e = elapsed(), p = phaseAt(e), prog = p.t/p.dur;
+      if (p.kind === "in") level = LOW + (HIGH-LOW)*ease(prog);
+      else if (p.kind === "out") level = HIGH - (HIGH-LOW)*ease(prog);
+      else level = p.kind === "holdTop" ? HIGH : LOW;
+      const key = `${p.n}-${p.idx}`;
+      if (key !== lastKey) {
+        lastKey = key; cueEl.textContent = CUES[p.kind]; live.textContent = CUES[p.kind];
+        bell(PHASE_TONES[p.kind], p.kind.startsWith("hold") ? 0.1 : 0.16);
+        if (p.kind === "in") breaths = p.n + 1;
+      }
+      countEl.textContent = String(Math.ceil(p.dur - p.t));
+      updateRemaining(e);
+      if (e >= Math.ceil(minutes*60/cycleLen())*cycleLen()) finish();
     } else {
-      const k = eyes === 'rounded' ? 1 : 0;
-      shapes.push({ t: 'rect', x, y, w: 7, h: 7, r: 2.2 * k, fill: fg });
-      shapes.push({ t: 'rect', x: x + 1, y: y + 1, w: 5, h: 5, r: 1.4 * k, fill: bg });
-      shapes.push({ t: 'rect', x: x + 2, y: y + 2, w: 3, h: 3, r: 0.9 * k, fill: fg });
+      // gentle resting swell when idle
+      idleLevel = LOW + 0.03 + Math.sin(time*0.6)*0.02;
+      level += (idleLevel - level)*0.04;
     }
+    const breath = (level-LOW)/(HIGH-LOW);
+    drawTide(level, time);
+    renderScene(time, breath);
+    if (sceneKey === "photo" && !reduceMotion) photo.style.transform = `scale(${(1.02 + 0.05*breath).toFixed(4)})`;
+    if (bed && bed.drive) bed.drive(running ? breath : 0.25 + Math.sin(time*0.5)*0.15);
+    requestAnimationFrame(frame);
+  }
+
+  function start() {
+    ensureAudio();
+    if (!elapsedBefore) { breaths = 0; lastKey = ""; }
+    running = true; finished = false; startedAt = performance.now();
+    toggle.textContent = "Pause"; resetBtn.hidden = false;
+    hintEl.textContent = ""; controls.classList.add("dim");
+    requestWake();
+    if (document.activeElement) document.activeElement.blur();
+  }
+  function pause() {
+    elapsedBefore = elapsed(); running = false;
+    toggle.textContent = "Resume"; cueEl.textContent = "Paused"; countEl.textContent = "";
+    controls.classList.remove("dim"); releaseWake();
+  }
+  function stop() {
+    running = false; elapsedBefore = 0; lastKey = "";
+    toggle.textContent = "Start"; resetBtn.hidden = true;
+    cueEl.textContent = "Breathe"; countEl.textContent = ""; hintEl.textContent = DEFAULT_HINT;
+    controls.classList.remove("dim"); releaseWake(); updateRemaining(0);
+  }
+  function finish() {
+    const n = breaths, m = minutes;
+    stop();
+    cueEl.textContent = "Well done";
+    hintEl.textContent = `You took ${n} slow breath${n === 1 ? "" : "s"} over ${m} minute${m === 1 ? "" : "s"}. Notice how you feel before moving on.`;
+    live.textContent = "Session complete"; toggle.textContent = "Start again";
+    if (ctx && chimesOn) { bell(440, 0.14, 4); setTimeout(() => bell(554.37, 0.12, 4), 450); setTimeout(() => bell(659.25, 0.12, 5), 900); }
+  }
+
+  toggle.onclick = () => (running ? pause() : start());
+  resetBtn.onclick = stop;
+  document.addEventListener("keydown", ev => {
+    if (ev.code === "Space" && !(ev.target instanceof HTMLButtonElement) && !(ev.target instanceof HTMLInputElement)) { ev.preventDefault(); toggle.click(); }
+    if (ev.key === "Escape" && (running || elapsedBefore)) stop();
   });
 
-  if (box) {
-    if (els.logoPad.checked) {
-      const pr = eyes === 'square' && dots === 'square' ? 0.3 : box.s * 0.18;
-      shapes.push({ t: 'rect', x: box.x - 0.3, y: box.y - 0.3, w: box.s + 0.6, h: box.s + 0.6, r: pr, fill: bg });
-    }
-    const ar = logo.w / logo.h;
-    const inset = els.logoPad.checked ? box.s * 0.06 : 0;
-    const s = box.s - inset * 2;
-    const w = ar >= 1 ? s : s * ar, h = ar >= 1 ? s / ar : s;
-    shapes.push({ t: 'image', x: box.x + (box.s - w) / 2, y: box.y + (box.s - h) / 2, w, h });
-  }
+  let wake = null;
+  async function requestWake() { try { wake = await navigator.wakeLock?.request("screen"); } catch {} }
+  function releaseWake() { try { wake?.release(); } catch {} wake = null; }
+  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && running) requestWake(); });
+  window.addEventListener("resize", sizeCanvas);
 
-  if (caption) {
-    shapes.push({ t: 'text', x: W / 2, y: W + capH * 0.38, size: Math.min(capH * 0.55, W * 0.9 / Math.max(caption.length, 1) * 1.9), text: caption, fill: fg });
-  }
-  return { W, H, shapes };
-}
-
-/* ---------- Renderers ---------- */
-function toSvg(scene) {
-  const parts = scene.shapes.map(s => {
-    if (s.t === 'rect') return `<rect x="${s.x}" y="${s.y}" width="${s.w}" height="${s.h}"${s.r ? ` rx="${s.r}"` : ''} fill="${s.fill}"/>`;
-    if (s.t === 'circle') return `<circle cx="${s.cx}" cy="${s.cy}" r="${s.r}" fill="${s.fill}"/>`;
-    if (s.t === 'image') return `<image href="${logo.src}" x="${s.x}" y="${s.y}" width="${s.w}" height="${s.h}" preserveAspectRatio="xMidYMid meet"/>`;
-    if (s.t === 'text') return `<text x="${s.x}" y="${s.y}" font-family='${FONT.replace(/'/g, '')}' font-size="${s.size}" font-weight="600" fill="${s.fill}" text-anchor="middle" dominant-baseline="middle">${esc(s.text)}</text>`;
-    return '';
-  });
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${scene.W} ${scene.H}" role="img" aria-label="QR code for ${esc(currentUrl)}">${parts.join('')}</svg>`;
-}
-function toCanvas(scene, px) {
-  const k = px / scene.W;
-  const cv = document.createElement('canvas');
-  cv.width = px; cv.height = Math.round(scene.H * k);
-  const ctx = cv.getContext('2d');
-  ctx.scale(k, k);
-  for (const s of scene.shapes) {
-    if (s.t === 'rect') {
-      ctx.fillStyle = s.fill; ctx.beginPath();
-      if (s.r) roundRect(ctx, s.x, s.y, s.w, s.h, s.r); else ctx.rect(s.x, s.y, s.w, s.h);
-      ctx.fill();
-    } else if (s.t === 'circle') {
-      ctx.fillStyle = s.fill; ctx.beginPath(); ctx.arc(s.cx, s.cy, s.r, 0, Math.PI * 2); ctx.fill();
-    } else if (s.t === 'image') {
-      ctx.drawImage(logo.img, s.x, s.y, s.w, s.h);
-    } else if (s.t === 'text') {
-      ctx.fillStyle = s.fill; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-      ctx.font = `600 ${s.size}px ${FONT}`; ctx.fillText(s.text, s.x, s.y);
-    }
-  }
-  return cv;
-}
-function roundRect(ctx, x, y, w, h, r) {
-  r = Math.min(r, w / 2, h / 2);
-  ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r);
-  ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath();
-}
-
-/* ---------- Main render ---------- */
-let lastScene = null;
-function render(animate) {
-  checkContrast();
-  els.ec.disabled = !!logo;
-  els.ecNote.textContent = logo
-    ? 'Set to highest because a logo covers part of the code.'
-    : 'Higher levels still scan when part of the code is scratched or covered, but make the pattern denser.';
-  if (!currentUrl) return;
-  try { lastScene = buildScene(currentUrl); }
-  catch {
-    els.msg.textContent = 'That address is too long to fit in a QR code. Try a shorter link.';
-    els.msg.className = 'msg error'; return;
-  }
-  els.stage.innerHTML = toSvg(lastScene);
-  els.stage.classList.add('filled');
-  els.stage.classList.toggle('pop', !!animate);
-  els.encoded.innerHTML = '';
-  const st = document.createElement('strong'); st.textContent = 'Opens: ';
-  els.encoded.append(st, document.createTextNode(currentUrl));
-  els.encoded.hidden = false;
-  els.save.hidden = !downloads; els.hint.hidden = !!downloads;
-}
-function generate(showErrors) {
-  const res = normalize(els.url.value);
-  if (res.error) {
-    if (showErrors) { els.msg.textContent = res.error; els.msg.className = 'msg error'; }
-    return;
-  }
-  const isNew = res.url !== currentUrl;
-  currentUrl = res.url; currentHost = res.host;
-  els.msg.textContent = ''; els.msg.className = 'msg';
-  render(isNew && showErrors);
-}
-let currentHost = '', typingTimer;
-els.go.addEventListener('click', () => generate(true));
-els.url.addEventListener('keydown', e => { if (e.key === 'Enter') generate(true); });
-els.url.addEventListener('input', () => { clearTimeout(typingTimer); typingTimer = setTimeout(() => generate(false), 350); });
-
-['fg', 'bg'].forEach(k => els[k].addEventListener('input', () => { syncSwatches(); render(); }));
-document.querySelectorAll('input[name=dots], input[name=eyes]').forEach(r => r.addEventListener('change', () => render()));
-els.caption.addEventListener('input', () => render());
-els.ec.addEventListener('change', () => render());
-els.logoPad.addEventListener('change', () => render());
-els.margin.addEventListener('input', () => { els.marginOut.textContent = els.margin.value; render(); });
-els.logoSize.addEventListener('input', () => { els.logoSizeOut.textContent = els.logoSize.value + '%'; render(); });
-
-/* ---------- Logo ---------- */
-els.logo.addEventListener('change', () => {
-  const f = els.logo.files[0];
-  if (!f) return;
-  if (f.size > 4 * 1024 * 1024) { els.logoName.textContent = 'That image is over 4 MB. Choose a smaller one.'; return; }
-  const reader = new FileReader();
-  reader.onload = () => {
-    const img = new Image();
-    img.onload = () => {
-      const w = img.naturalWidth || 100, h = img.naturalHeight || 100;
-      logo = { src: reader.result, img, w, h };
-      els.thumb.innerHTML = ''; const t = new Image(); t.src = reader.result; t.alt = ''; els.thumb.append(t);
-      els.logoName.textContent = f.name;
-      els.logoOpts.hidden = false;
-      render();
-    };
-    img.onerror = () => { els.logoName.textContent = 'That file couldn\u2019t be read as an image. Try a PNG or JPG.'; };
-    img.src = reader.result;
-  };
-  reader.readAsDataURL(f);
-});
-els.logoRemove.addEventListener('click', () => {
-  logo = null; els.logo.value = ''; els.thumb.textContent = '+';
-  els.logoName.textContent = 'Add a logo'; els.logoOpts.hidden = true; render();
-});
-
-/* ---------- Downloads ---------- */
-function fileBase() { return 'qr-' + (currentHost || 'code').replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, ''); }
-async function save(filename, data) {
-  els.saveMsg.textContent = ''; els.saveMsg.className = 'msg';
-  try { await downloads.save({ filename, data }); els.saveMsg.textContent = 'Saved ' + filename + '.'; }
-  catch (e) {
-    if (e && e.code === 'declined') return;
-    if (e && e.code === 'rate_limited') els.saveMsg.textContent = 'A save is already waiting for you to confirm.';
-    else { els.saveMsg.textContent = 'Saving isn\u2019t available here. Take a screenshot of the code instead.'; els.saveMsg.className = 'msg error'; }
-  }
-}
-els.dlSvg.addEventListener('click', () => { if (lastScene) save(fileBase() + '.svg', toSvg(lastScene)); });
-els.dlPng.addEventListener('click', async () => {
-  if (!lastScene) return;
-  try { await document.fonts.ready; } catch {}
-  const cv = toCanvas(lastScene, +els.pngSize.value);
-  cv.toBlob(b => { if (b) save(fileBase() + '.png', b); }, 'image/png');
-});
-
-(async () => {
-  try { downloads = window.claude && window.claude.use ? await window.claude.use('downloads') : null; } catch { downloads = null; }
-  if (currentUrl) { els.save.hidden = !downloads; els.hint.hidden = !!downloads; }
+  updateRemaining(0);
+  requestAnimationFrame(frame);
 })();
-checkContrast();
 </script>
 </body>
 </html>
