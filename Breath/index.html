@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>QR Code Maker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
+<style>
+  :root {
+    --paper: #E9EEF5; --ink: #1C2541; --muted: #5E6B88; --accent: #2B59C3;
+    --on-accent: #FFFFFF; --field: #FFFFFF; --line: #C9D3E3; --error: #B3261E; --warn: #8A5A00;
+    box-sizing: border-box;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper: #141A2B; --ink: #E6ECF7; --muted: #98A4C0; --accent: #7EA2FF;
+      --on-accent: #10172A; --field: #1E2640; --line: #33405F; --error: #FF8A80; --warn: #F5C26B;
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper: #141A2B; --ink: #E6ECF7; --muted: #98A4C0; --accent: #7EA2FF;
+    --on-accent: #10172A; --field: #1E2640; --line: #33405F; --error: #FF8A80; --warn: #F5C26B;
+  }
+  html { scroll-padding-top: env(safe-area-inset-top, 0px); }
+  *, *::before, *::after { box-sizing: inherit; }
+  body {
+    margin: 0; min-height: 100vh; background: var(--paper); color: var(--ink);
+    font-family: "Bricolage Grotesque", system-ui, -apple-system, "Segoe UI", sans-serif;
+    padding: 3rem 1.25rem 4rem;
+  }
+  main { max-width: 64rem; margin: 0 auto; }
+  h1 {
+    font-size: clamp(2.5rem, 7vw, 3.75rem); font-weight: 800; line-height: 0.95;
+    letter-spacing: -0.035em; margin: 0 0 0.75rem; max-width: 14ch;
+  }
+  .lede { color: var(--muted); font-size: 1.125rem; line-height: 1.5; margin: 0 0 2rem; max-width: 46ch; }
+  .layout { display: grid; gap: 2.5rem; grid-template-columns: 1fr; }
+  @media (min-width: 52rem) {
+    .layout { grid-template-columns: minmax(0, 1fr) 22rem; align-items: start; }
+    .preview { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 1.5rem); }
+  }
+  label, .label { display: block; font-weight: 600; margin-bottom: 0.5rem; }
+  .row { display: flex; gap: 0.5rem; }
+  input[type=text], input[type=url], select {
+    flex: 1; min-width: 0; font: inherit; font-size: 1.0625rem; padding: 0.8rem 1rem;
+    color: var(--ink); background: var(--field); border: 2px solid var(--line); border-radius: 10px;
+  }
+  select { flex: none; }
+  input:focus-visible, select:focus-visible { outline: none; border-color: var(--accent); }
+  button {
+    font: inherit; font-weight: 600; font-size: 1.0625rem; padding: 0.8rem 1.25rem;
+    border: 0; border-radius: 10px; background: var(--accent); color: var(--on-accent); cursor: pointer;
+  }
+  button.quiet { background: transparent; color: var(--ink); border: 2px solid var(--line); padding: 0.6rem 1rem; font-size: 1rem; }
+  button:focus-visible, .chip input:focus-visible + span, .swatch:focus-visible, .upload:focus-within {
+    outline: 3px solid var(--accent); outline-offset: 2px;
+  }
+  .msg { min-height: 1.5rem; margin: 0.5rem 0 0; font-size: 0.95rem; color: var(--muted); }
+  .msg.error { color: var(--error); }
+
+  fieldset { border: 0; padding: 0; margin: 2rem 0 0; min-width: 0; }
+  legend { font-size: 1.375rem; font-weight: 800; letter-spacing: -0.015em; padding: 0; margin-bottom: 1rem; }
+  .group + .group { margin-top: 1.25rem; }
+  .note { font-size: 0.9rem; color: var(--muted); margin: 0.4rem 0 0; line-height: 1.45; }
+  .note.warn { color: var(--warn); }
+
+  .swatches { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1rem; }
+  .swatch {
+    width: 2.75rem; height: 2.75rem; border-radius: 50%; border: 2px solid var(--line);
+    padding: 0; cursor: pointer; position: relative; overflow: hidden;
+  }
+  .swatch[aria-pressed="true"] { border-color: var(--ink); box-shadow: 0 0 0 2px var(--paper), 0 0 0 4px var(--ink); }
+  .swatch i { position: absolute; inset: 22%; border-radius: 3px; }
+  .colors { display: flex; flex-wrap: wrap; gap: 1rem 1.5rem; }
+  .color { display: flex; align-items: center; gap: 0.6rem; font-weight: 400; margin: 0; }
+  input[type=color] {
+    width: 2.75rem; height: 2.75rem; padding: 0; border: 2px solid var(--line);
+    border-radius: 10px; background: none; cursor: pointer;
+  }
+  input[type=color]::-webkit-color-swatch-wrapper { padding: 3px; }
+  input[type=color]::-webkit-color-swatch { border: 0; border-radius: 6px; }
+
+  .chips { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+  .chip { position: relative; margin: 0; font-weight: 400; }
+  .chip input { position: absolute; opacity: 0; pointer-events: none; }
+  .chip span {
+    display: flex; align-items: center; gap: 0.5rem; padding: 0.55rem 0.9rem;
+    border: 2px solid var(--line); border-radius: 999px; cursor: pointer; background: var(--field);
+  }
+  .chip span svg { width: 1.1rem; height: 1.1rem; fill: currentColor; }
+  .chip input:checked + span { border-color: var(--accent); color: var(--accent); font-weight: 600; }
+  .chip input:disabled + span { opacity: 0.5; cursor: not-allowed; }
+
+  .range { display: flex; align-items: center; gap: 1rem; }
+  input[type=range] { flex: 1; accent-color: var(--accent); }
+  .range output { min-width: 3.5rem; text-align: right; font-variant-numeric: tabular-nums; color: var(--muted); }
+
+  .upload {
+    display: flex; align-items: center; gap: 1rem; padding: 0.9rem 1rem; margin: 0;
+    border: 2px dashed var(--line); border-radius: 12px; cursor: pointer; font-weight: 400;
+  }
+  .upload input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+  .thumb {
+    width: 3rem; height: 3rem; border-radius: 8px; background: var(--paper);
+    display: grid; place-items: center; overflow: hidden; flex: none; color: var(--muted); font-size: 1.5rem;
+  }
+  .thumb img { max-width: 100%; max-height: 100%; }
+  .check { display: flex; align-items: center; gap: 0.6rem; font-weight: 400; margin: 0.75rem 0 0; }
+  .check input { width: 1.2rem; height: 1.2rem; accent-color: var(--accent); }
+  .logo-opts[hidden] { display: none; }
+
+  .stage {
+    aspect-ratio: 1; width: 100%; border: 2px dashed var(--line); border-radius: 18px;
+    display: grid; place-items: center; color: var(--muted); text-align: center; padding: 1.5rem;
+  }
+  .stage.filled { border: 0; padding: 0; aspect-ratio: auto; }
+  .stage svg { width: 100%; height: auto; display: block; border-radius: 6px; box-shadow: 0 1px 0 var(--line), 0 12px 32px -18px rgba(28,37,65,.45); }
+  .stage.pop svg { animation: pop 240ms ease-out; }
+  @keyframes pop { from { transform: scale(0.95); opacity: 0; } to { transform: none; opacity: 1; } }
+  @media (prefers-reduced-motion: reduce) { .stage.pop svg { animation: none; } }
+  .encoded { margin: 1rem 0 0; font-size: 0.95rem; color: var(--muted); word-break: break-all; }
+  .encoded strong { color: var(--ink); }
+  .save { margin-top: 1.25rem; display: grid; gap: 0.75rem; }
+  .save .row { flex-wrap: wrap; }
+  .save[hidden], .encoded[hidden], #hint[hidden] { display: none; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Turn a link into a QR code</h1>
+  <p class="lede">Paste a web address, then make it yours with colors, shapes and a logo. Any phone camera can scan the result.</p>
+
+  <div class="layout">
+    <section aria-label="Settings">
+      <label for="url">Web address</label>
+      <div class="row">
+        <input id="url" type="url" inputmode="url" autocomplete="url" placeholder="example.com/menu" autofocus>
+        <button id="go" type="button">Make code</button>
+      </div>
+      <p id="msg" class="msg" role="status"></p>
+
+      <fieldset>
+        <legend>Colors</legend>
+        <div class="swatches" id="swatches" role="group" aria-label="Color presets"></div>
+        <div class="colors">
+          <label class="color"><input type="color" id="fg" value="#1C2541"> Code color</label>
+          <label class="color"><input type="color" id="bg" value="#FFFFFF"> Background</label>
+        </div>
+        <p id="contrast" class="note" aria-live="polite"></p>
+      </fieldset>
+
+      <fieldset>
+        <legend>Shape</legend>
+        <div class="group">
+          <span class="label" id="dotsLabel">Dots</span>
+          <div class="chips" role="radiogroup" aria-labelledby="dotsLabel">
+            <label class="chip"><input type="radio" name="dots" value="square" checked><span><svg viewBox="0 0 10 10"><rect x="1" y="1" width="8" height="8"/></svg>Square</span></label>
+            <label class="chip"><input type="radio" name="dots" value="rounded"><span><svg viewBox="0 0 10 10"><rect x="1" y="1" width="8" height="8" rx="2.6"/></svg>Rounded</span></label>
+            <label class="chip"><input type="radio" name="dots" value="dots"><span><svg viewBox="0 0 10 10"><circle cx="5" cy="5" r="4"/></svg>Dots</span></label>
+          </div>
+        </div>
+        <div class="group">
+          <span class="label" id="eyesLabel">Corner squares</span>
+          <div class="chips" role="radiogroup" aria-labelledby="eyesLabel">
+            <label class="chip"><input type="radio" name="eyes" value="square" checked><span><svg viewBox="0 0 10 10"><path fill-rule="evenodd" d="M0 0h10v10H0zM2 2v6h6V2zM3.5 3.5h3v3h-3z"/></svg>Square</span></label>
+            <label class="chip"><input type="radio" name="eyes" value="rounded"><span><svg viewBox="0 0 10 10"><path fill-rule="evenodd" d="M3 0h4a3 3 0 0 1 3 3v4a3 3 0 0 1-3 3H3a3 3 0 0 1-3-3V3a3 3 0 0 1 3-3zM3.5 2A1.5 1.5 0 0 0 2 3.5v3A1.5 1.5 0 0 0 3.5 8h3A1.5 1.5 0 0 0 8 6.5v-3A1.5 1.5 0 0 0 6.5 2zM4.3 3.5h1.4a.8.8 0 0 1 .8.8v1.4a.8.8 0 0 1-.8.8H4.3a.8.8 0 0 1-.8-.8V4.3a.8.8 0 0 1 .8-.8z"/></svg>Rounded</span></label>
+            <label class="chip"><input type="radio" name="eyes" value="circle"><span><svg viewBox="0 0 10 10"><path fill-rule="evenodd" d="M5 0a5 5 0 1 1 0 10A5 5 0 0 1 5 0zm0 2a3 3 0 1 0 0 6 3 3 0 0 0 0-6zm0 1.4a1.6 1.6 0 1 1 0 3.2 1.6 1.6 0 0 1 0-3.2z"/></svg>Circle</span></label>
+          </div>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Logo</legend>
+        <label class="upload">
+          <span class="thumb" id="thumb" aria-hidden="true">+</span>
+          <span><strong id="logoName">Add a logo</strong><br><span class="note" style="margin:0">PNG, JPG or SVG. Shown in the center.</span></span>
+          <input type="file" id="logo" accept="image/png,image/jpeg,image/svg+xml,image/webp,image/gif">
+        </label>
+        <div class="logo-opts" id="logoOpts" hidden>
+          <div class="group" style="margin-top:1rem">
+            <label for="logoSize">Logo size</label>
+            <div class="range"><input type="range" id="logoSize" min="12" max="28" value="22"><output id="logoSizeOut" for="logoSize">22%</output></div>
+          </div>
+          <label class="check"><input type="checkbox" id="logoPad" checked> Clear space behind the logo</label>
+          <div style="margin-top:0.75rem"><button type="button" class="quiet" id="logoRemove">Remove logo</button></div>
+          <p class="note">With a logo, the code switches to its highest error correction so it still scans with the center covered.</p>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Extras</legend>
+        <div class="group">
+          <label for="caption">Text under the code</label>
+          <input type="text" id="caption" maxlength="40" placeholder="Scan to see our menu" style="width:100%">
+        </div>
+        <div class="group">
+          <label for="margin">Border space</label>
+          <div class="range"><input type="range" id="margin" min="0" max="8" value="4"><output id="marginOut" for="margin">4</output></div>
+          <p class="note">Most scanners need a border of about 4 dots around the code.</p>
+        </div>
+        <div class="group">
+          <label for="ec">Damage resistance</label>
+          <select id="ec">
+            <option value="L">Low (7%), simplest pattern</option>
+            <option value="M" selected>Medium (15%), recommended</option>
+            <option value="Q">High (25%)</option>
+            <option value="H">Highest (30%)</option>
+          </select>
+          <p class="note" id="ecNote">Higher levels still scan when part of the code is scratched or covered, but make the pattern denser.</p>
+        </div>
+      </fieldset>
+    </section>
+
+    <aside class="preview" aria-label="Preview">
+      <div id="stage" class="stage">Your QR code will appear here.</div>
+      <p id="encoded" class="encoded" hidden></p>
+      <div class="save" id="save" hidden>
+        <div class="row">
+          <select id="pngSize" aria-label="Image size">
+            <option value="512">512 px</option>
+            <option value="1024" selected>1024 px</option>
+            <option value="2048">2048 px</option>
+          </select>
+          <button type="button" id="dlPng" style="flex:1">Download PNG</button>
+        </div>
+        <button type="button" class="quiet" id="dlSvg">Download SVG for print</button>
+        <p class="msg" id="saveMsg" role="status"></p>
+      </div>
+      <p id="hint" class="note" hidden>To save it, take a screenshot or long-press the code.</p>
+    </aside>
+  </div>
+</main>
+
+<script>
+const $ = id => document.getElementById(id);
+const els = {
+  url: $('url'), go: $('go'), msg: $('msg'), fg: $('fg'), bg: $('bg'), contrast: $('contrast'),
+  logo: $('logo'), logoOpts: $('logoOpts'), logoSize: $('logoSize'), logoSizeOut: $('logoSizeOut'),
+  logoPad: $('logoPad'), logoRemove: $('logoRemove'), thumb: $('thumb'), logoName: $('logoName'),
+  caption: $('caption'), margin: $('margin'), marginOut: $('marginOut'), ec: $('ec'), ecNote: $('ecNote'),
+  stage: $('stage'), encoded: $('encoded'), save: $('save'), pngSize: $('pngSize'),
+  dlPng: $('dlPng'), dlSvg: $('dlSvg'), saveMsg: $('saveMsg'), hint: $('hint'), swatches: $('swatches')
+};
+const FONT = '"Bricolage Grotesque", system-ui, -apple-system, "Segoe UI", sans-serif';
+let currentUrl = null, logo = null, downloads = null;
+
+/* ---------- Presets ---------- */
+const presets = [
+  ['Navy', '#1C2541', '#FFFFFF'], ['Black', '#000000', '#FFFFFF'], ['Forest', '#1F5135', '#F1F6EE'],
+  ['Plum', '#4B1D52', '#FBF3FA'], ['Crimson', '#9E1B32', '#FFF6F4'], ['Cobalt', '#1546A8', '#EEF3FF'],
+  ['Espresso', '#3B2418', '#F7EFE6'], ['Teal', '#0B5563', '#E8F6F5']
+];
+presets.forEach(([name, fg, bg], i) => {
+  const b = document.createElement('button');
+  b.type = 'button'; b.className = 'swatch'; b.style.background = bg;
+  b.setAttribute('aria-label', name); b.setAttribute('aria-pressed', i === 0);
+  b.title = name;
+  const dot = document.createElement('i'); dot.style.background = fg; b.append(dot);
+  b.addEventListener('click', () => { els.fg.value = fg; els.bg.value = bg; syncSwatches(); render(); });
+  els.swatches.append(b);
+});
+function syncSwatches() {
+  [...els.swatches.children].forEach((b, i) => {
+    const [, fg, bg] = presets[i];
+    b.setAttribute('aria-pressed', fg.toLowerCase() === els.fg.value.toLowerCase() && bg.toLowerCase() === els.bg.value.toLowerCase());
+  });
+}
+
+/* ---------- Helpers ---------- */
+function normalize(raw) {
+  let v = raw.trim();
+  if (!v) return { error: 'Enter a web address first.' };
+  if (!/^[a-z][a-z0-9+.-]*:/i.test(v)) v = 'https://' + v;
+  try {
+    const u = new URL(v);
+    if ((u.protocol === 'http:' || u.protocol === 'https:') && !u.hostname.includes('.') && u.hostname !== 'localhost')
+      return { error: 'That address needs a domain, like example.com.' };
+    return { url: u.href, host: u.hostname };
+  } catch { return { error: 'That isn\u2019t a valid web address. Check for typos or spaces.' }; }
+}
+function lum(hex) {
+  const c = [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16) / 255)
+    .map(v => v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4);
+  return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
+}
+function checkContrast() {
+  const a = lum(els.fg.value), b = lum(els.bg.value);
+  const ratio = (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+  let t = '', warn = false;
+  if (ratio < 3) { t = 'These colors are too close together. Many phones won\u2019t be able to scan this code.'; warn = true; }
+  else if (a > b) { t = 'Light codes on dark backgrounds don\u2019t scan on some older phones. Test it before printing.'; warn = true; }
+  else if (ratio < 4.5) { t = 'Contrast is a little low. Test the code with a phone before printing.'; warn = true; }
+  els.contrast.textContent = t;
+  els.contrast.className = 'note' + (warn ? ' warn' : '');
+}
+const radio = name => document.querySelector(`input[name=${name}]:checked`).value;
+const esc = s => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+/* ---------- Build a scene of shapes (shared by SVG and PNG) ---------- */
+function buildScene(text) {
+  const ecLevel = logo ? 'H' : els.ec.value;
+  const qr = qrcode(0, ecLevel);
+  qr.addData(text, 'Byte'); qr.make();
+  const n = qr.getModuleCount();
+  const m = +els.margin.value;
+  const W = n + m * 2;
+  const fg = els.fg.value, bg = els.bg.value;
+  const dots = radio('dots'), eyes = radio('eyes');
+  const caption = els.caption.value.trim();
+  const capH = caption ? Math.max(W * 0.14, 5) : 0;
+  const H = W + capH;
+  const shapes = [{ t: 'rect', x: 0, y: 0, w: W, h: H, r: 0, fill: bg }];
+
+  // Logo box (in module units), centered
+  let box = null;
+  if (logo) {
+    const s = n * (+els.logoSize.value / 100);
+    box = { x: m + (n - s) / 2, y: m + (n - s) / 2, s };
+  }
+  const isFinder = (r, c) => (r < 7 && c < 7) || (r < 7 && c >= n - 7) || (r >= n - 7 && c < 7);
+  const underLogo = (r, c) => {
+    if (!box || !els.logoPad.checked) return false;
+    const pad = 0.6, cx = c + m + 0.5, cy = r + m + 0.5;
+    return cx > box.x - pad && cx < box.x + box.s + pad && cy > box.y - pad && cy < box.y + box.s + pad;
+  };
+
+  for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) {
+    if (!qr.isDark(r, c) || isFinder(r, c) || underLogo(r, c)) continue;
+    const x = c + m, y = r + m;
+    if (dots === 'dots') shapes.push({ t: 'circle', cx: x + 0.5, cy: y + 0.5, r: 0.44, fill: fg });
+    else if (dots === 'rounded') shapes.push({ t: 'rect', x: x + 0.06, y: y + 0.06, w: 0.88, h: 0.88, r: 0.3, fill: fg });
+    else shapes.push({ t: 'rect', x, y, w: 1.02, h: 1.02, r: 0, fill: fg });
+  }
+
+  // Finder patterns
+  [[0, 0], [0, n - 7], [n - 7, 0]].forEach(([r, c]) => {
+    const x = c + m, y = r + m;
+    if (eyes === 'circle') {
+      shapes.push({ t: 'circle', cx: x + 3.5, cy: y + 3.5, r: 3.5, fill: fg });
+      shapes.push({ t: 'circle', cx: x + 3.5, cy: y + 3.5, r: 2.5, fill: bg });
+      shapes.push({ t: 'circle', cx: x + 3.5, cy: y + 3.5, r: 1.55, fill: fg });
+    } else {
+      const k = eyes === 'rounded' ? 1 : 0;
+      shapes.push({ t: 'rect', x, y, w: 7, h: 7, r: 2.2 * k, fill: fg });
+      shapes.push({ t: 'rect', x: x + 1, y: y + 1, w: 5, h: 5, r: 1.4 * k, fill: bg });
+      shapes.push({ t: 'rect', x: x + 2, y: y + 2, w: 3, h: 3, r: 0.9 * k, fill: fg });
+    }
+  });
+
+  if (box) {
+    if (els.logoPad.checked) {
+      const pr = eyes === 'square' && dots === 'square' ? 0.3 : box.s * 0.18;
+      shapes.push({ t: 'rect', x: box.x - 0.3, y: box.y - 0.3, w: box.s + 0.6, h: box.s + 0.6, r: pr, fill: bg });
+    }
+    const ar = logo.w / logo.h;
+    const inset = els.logoPad.checked ? box.s * 0.06 : 0;
+    const s = box.s - inset * 2;
+    const w = ar >= 1 ? s : s * ar, h = ar >= 1 ? s / ar : s;
+    shapes.push({ t: 'image', x: box.x + (box.s - w) / 2, y: box.y + (box.s - h) / 2, w, h });
+  }
+
+  if (caption) {
+    shapes.push({ t: 'text', x: W / 2, y: W + capH * 0.38, size: Math.min(capH * 0.55, W * 0.9 / Math.max(caption.length, 1) * 1.9), text: caption, fill: fg });
+  }
+  return { W, H, shapes };
+}
+
+/* ---------- Renderers ---------- */
+function toSvg(scene) {
+  const parts = scene.shapes.map(s => {
+    if (s.t === 'rect') return `<rect x="${s.x}" y="${s.y}" width="${s.w}" height="${s.h}"${s.r ? ` rx="${s.r}"` : ''} fill="${s.fill}"/>`;
+    if (s.t === 'circle') return `<circle cx="${s.cx}" cy="${s.cy}" r="${s.r}" fill="${s.fill}"/>`;
+    if (s.t === 'image') return `<image href="${logo.src}" x="${s.x}" y="${s.y}" width="${s.w}" height="${s.h}" preserveAspectRatio="xMidYMid meet"/>`;
+    if (s.t === 'text') return `<text x="${s.x}" y="${s.y}" font-family='${FONT.replace(/'/g, '')}' font-size="${s.size}" font-weight="600" fill="${s.fill}" text-anchor="middle" dominant-baseline="middle">${esc(s.text)}</text>`;
+    return '';
+  });
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${scene.W} ${scene.H}" role="img" aria-label="QR code for ${esc(currentUrl)}">${parts.join('')}</svg>`;
+}
+function toCanvas(scene, px) {
+  const k = px / scene.W;
+  const cv = document.createElement('canvas');
+  cv.width = px; cv.height = Math.round(scene.H * k);
+  const ctx = cv.getContext('2d');
+  ctx.scale(k, k);
+  for (const s of scene.shapes) {
+    if (s.t === 'rect') {
+      ctx.fillStyle = s.fill; ctx.beginPath();
+      if (s.r) roundRect(ctx, s.x, s.y, s.w, s.h, s.r); else ctx.rect(s.x, s.y, s.w, s.h);
+      ctx.fill();
+    } else if (s.t === 'circle') {
+      ctx.fillStyle = s.fill; ctx.beginPath(); ctx.arc(s.cx, s.cy, s.r, 0, Math.PI * 2); ctx.fill();
+    } else if (s.t === 'image') {
+      ctx.drawImage(logo.img, s.x, s.y, s.w, s.h);
+    } else if (s.t === 'text') {
+      ctx.fillStyle = s.fill; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.font = `600 ${s.size}px ${FONT}`; ctx.fillText(s.text, s.x, s.y);
+    }
+  }
+  return cv;
+}
+function roundRect(ctx, x, y, w, h, r) {
+  r = Math.min(r, w / 2, h / 2);
+  ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath();
+}
+
+/* ---------- Main render ---------- */
+let lastScene = null;
+function render(animate) {
+  checkContrast();
+  els.ec.disabled = !!logo;
+  els.ecNote.textContent = logo
+    ? 'Set to highest because a logo covers part of the code.'
+    : 'Higher levels still scan when part of the code is scratched or covered, but make the pattern denser.';
+  if (!currentUrl) return;
+  try { lastScene = buildScene(currentUrl); }
+  catch {
+    els.msg.textContent = 'That address is too long to fit in a QR code. Try a shorter link.';
+    els.msg.className = 'msg error'; return;
+  }
+  els.stage.innerHTML = toSvg(lastScene);
+  els.stage.classList.add('filled');
+  els.stage.classList.toggle('pop', !!animate);
+  els.encoded.innerHTML = '';
+  const st = document.createElement('strong'); st.textContent = 'Opens: ';
+  els.encoded.append(st, document.createTextNode(currentUrl));
+  els.encoded.hidden = false;
+  els.save.hidden = !downloads; els.hint.hidden = !!downloads;
+}
+function generate(showErrors) {
+  const res = normalize(els.url.value);
+  if (res.error) {
+    if (showErrors) { els.msg.textContent = res.error; els.msg.className = 'msg error'; }
+    return;
+  }
+  const isNew = res.url !== currentUrl;
+  currentUrl = res.url; currentHost = res.host;
+  els.msg.textContent = ''; els.msg.className = 'msg';
+  render(isNew && showErrors);
+}
+let currentHost = '', typingTimer;
+els.go.addEventListener('click', () => generate(true));
+els.url.addEventListener('keydown', e => { if (e.key === 'Enter') generate(true); });
+els.url.addEventListener('input', () => { clearTimeout(typingTimer); typingTimer = setTimeout(() => generate(false), 350); });
+
+['fg', 'bg'].forEach(k => els[k].addEventListener('input', () => { syncSwatches(); render(); }));
+document.querySelectorAll('input[name=dots], input[name=eyes]').forEach(r => r.addEventListener('change', () => render()));
+els.caption.addEventListener('input', () => render());
+els.ec.addEventListener('change', () => render());
+els.logoPad.addEventListener('change', () => render());
+els.margin.addEventListener('input', () => { els.marginOut.textContent = els.margin.value; render(); });
+els.logoSize.addEventListener('input', () => { els.logoSizeOut.textContent = els.logoSize.value + '%'; render(); });
+
+/* ---------- Logo ---------- */
+els.logo.addEventListener('change', () => {
+  const f = els.logo.files[0];
+  if (!f) return;
+  if (f.size > 4 * 1024 * 1024) { els.logoName.textContent = 'That image is over 4 MB. Choose a smaller one.'; return; }
+  const reader = new FileReader();
+  reader.onload = () => {
+    const img = new Image();
+    img.onload = () => {
+      const w = img.naturalWidth || 100, h = img.naturalHeight || 100;
+      logo = { src: reader.result, img, w, h };
+      els.thumb.innerHTML = ''; const t = new Image(); t.src = reader.result; t.alt = ''; els.thumb.append(t);
+      els.logoName.textContent = f.name;
+      els.logoOpts.hidden = false;
+      render();
+    };
+    img.onerror = () => { els.logoName.textContent = 'That file couldn\u2019t be read as an image. Try a PNG or JPG.'; };
+    img.src = reader.result;
+  };
+  reader.readAsDataURL(f);
+});
+els.logoRemove.addEventListener('click', () => {
+  logo = null; els.logo.value = ''; els.thumb.textContent = '+';
+  els.logoName.textContent = 'Add a logo'; els.logoOpts.hidden = true; render();
+});
+
+/* ---------- Downloads ---------- */
+function fileBase() { return 'qr-' + (currentHost || 'code').replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, ''); }
+async function save(filename, data) {
+  els.saveMsg.textContent = ''; els.saveMsg.className = 'msg';
+  try { await downloads.save({ filename, data }); els.saveMsg.textContent = 'Saved ' + filename + '.'; }
+  catch (e) {
+    if (e && e.code === 'declined') return;
+    if (e && e.code === 'rate_limited') els.saveMsg.textContent = 'A save is already waiting for you to confirm.';
+    else { els.saveMsg.textContent = 'Saving isn\u2019t available here. Take a screenshot of the code instead.'; els.saveMsg.className = 'msg error'; }
+  }
+}
+els.dlSvg.addEventListener('click', () => { if (lastScene) save(fileBase() + '.svg', toSvg(lastScene)); });
+els.dlPng.addEventListener('click', async () => {
+  if (!lastScene) return;
+  try { await document.fonts.ready; } catch {}
+  const cv = toCanvas(lastScene, +els.pngSize.value);
+  cv.toBlob(b => { if (b) save(fileBase() + '.png', b); }, 'image/png');
+});
+
+(async () => {
+  try { downloads = window.claude && window.claude.use ? await window.claude.use('downloads') : null; } catch { downloads = null; }
+  if (currentUrl) { els.save.hidden = !downloads; els.hint.hidden = !!downloads; }
+})();
+checkContrast();
+</script>
+</body>
+</html>
